@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="shortcut icon" href="favicon.ico?v=1" type="image/x-icon" />
+    <title>My Tip Archive</title>
+    <style>
+        :root {
+            --bg-sidebar: #2c3e50;
+            /* 눈이 편안한 미색 (Sepia/Paper 톤) */
+            --bg-content: #fdf6e3; 
+            --text-main: #222222; /* 완전한 검정(#000)보다 한 단계 연한 짙은 회색 */
+            --text-side: #ecf0f1;
+            --accent: #2980b9; /* 미색과 잘 어울리는 포인트 컬러 */
+        }
+        * { box-sizing: border-box; }
+        body { display: flex; margin: 0; font-family: sans-serif; height: 100vh; overflow: hidden; }
+
+        /* 사이드바 레이아웃 */
+        #sidebar { width: 260px; background: var(--bg-sidebar); color: var(--text-side); display: flex; flex-direction: column; }
+        .side-header { padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        #search { width: calc(100% - 30px); margin: 10px 15px; padding: 6px; border-radius: 4px; border: none; outline: none; background: rgba(255,255,255,0.1); color: white; }
+
+        /* 폴더 및 리스트 스타일 */
+        .doc-list { flex: 1; overflow-y: auto; padding: 5px 0; }
+        
+        /* 폴더(details) 스타일 */
+        details { margin-bottom: 2px; }
+        summary { 
+            padding: 8px 20px; cursor: pointer; font-size: 0.85rem; font-weight: bold; 
+            color: #95a5a6; list-style: none; transition: 0.2s;
+        }
+        summary:hover { color: white; background: rgba(255,255,255,0.05); }
+        summary::before { content: "📁 "; margin-right: 5px; font-weight: normal; }
+        details[open] summary { color: var(--accent); }
+        details[open] summary::before { content: "📂 "; }
+        
+        /* 검색창 */
+        #search {
+            width: calc(100% - 40px); margin: 15px 20px; padding: 8px 12px;
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            color: white; border-radius: 6px; outline: none;
+        }
+
+        /* 문서 링크 스타일 */
+        .doc-list { overflow-y: auto; flex: 1; padding: 10px 0; }
+        .doc-link { 
+            display: block; padding: 6px 20px 6px 40px; color: #bdc3c7; 
+            text-decoration: none; font-size: 0.82rem; cursor: pointer; 
+            border-left: 3px solid transparent; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .doc-link:hover, .doc-link.active { background: rgba(255,255,255,0.1); color: white; border-left-color: var(--accent); }
+        .doc-link.active { background: rgba(255,255,255,0.1); color: white; border-left-color: var(--accent); font-weight: bold; }
+
+        /* 폰트 설정 영역 (사이드바 하단) */
+        .font-settings { 
+            padding: 15px; background: rgba(0,0,0,0.2); border-top: 1px solid rgba(255,255,255,0.1);
+            font-size: 0.8rem;
+        }
+        .font-settings select, .font-settings input { 
+            width: 100%; margin-top: 5px; padding: 4px; font-size: 0.8rem; 
+            background: #34495e; color: white; border: 1px solid #555;
+        }
+
+        /* 본문 영역 */
+        #content-wrapper { flex: 1; display: flex; flex-direction: column; background: var(--bg-content); }
+        #content { 
+            flex: 1; 
+            padding: 15px 25px; /* 상하 여백을 줄여 더 많은 내용 노출 */
+            overflow-y: auto; 
+            white-space: pre-wrap; 
+            word-break: break-all; 
+            font-family:'IBM Plex Mono', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+
+            /* 정보 밀도 최적화 설정 */
+            line-height: 1.35;   /* 줄 간격을 더 타이트하게 조정 */
+            font-size: 0.92rem;  /* 폰트 크기를 미세하게 더 축소 */
+            color: var(--text-main); /* 검정색 적용 */
+            font-weight: 400; /* 글자가 너무 두꺼우면 다시 검게 보일 수 있어 굵기 조절 */
+            letter-spacing: -0.02em; /* 글자 간격을 좁혀 밀도 향상 */
+        }
+
+        /* 이미지 스타일 */
+        #content img {
+            transition: transform 0.2s ease;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        #content img:hover {
+            transform: scale(1.05);
+        }
+
+		/* 햄버거 버튼 스타일 (기본 숨김) */
+		.hamburger {
+		    display: none;
+		    position: fixed;
+		    top: 10px;
+		    left: 10px;
+		    z-index: 1000;
+		    background: var(--bg-sidebar);
+		    color: white;
+		    border: none;
+		    font-size: 1.5rem;
+		    padding: 5px 12px;
+		    border-radius: 4px;
+		    cursor: pointer;
+		}
+
+        /* 모바일 대응 */
+		@media (max-width: 768px) {
+		    .hamburger { display: block; } /* 모바일에서 버튼 보임 */
+		
+		    #sidebar {
+		        position: fixed;
+		        left: -260px; /* 사이드바를 왼쪽 밖으로 숨김 */
+		        top: 0;
+		        bottom: 0;
+		        z-index: 999;
+		        transition: 0.3s; /* 부드러운 열림 효과 */
+        		height: 100vh;
+		    }
+
+		    /* 사이드바가 열렸을 때 클래스 */
+		    #sidebar.open {
+        		left: 0;
+		    }
+
+		    #content-wrapper {
+        		margin-left: 0;
+		        width: 100%;
+		    }
+		}
+    </style>
+</head>
+<body>
+
+<!-- 햄버거 메뉴 버튼 추가 -->
+<button id="menu-toggle" class="hamburger">☰</button>
+
+<nav id="sidebar">
+    <div class="side-header">
+        <h3>💡 MEMO ARCHIVE</h3>
+    </div>
+    <input type="text" id="search" placeholder="문서 검색..." onkeyup="filterDocs()">
+    <div class="doc-list" id="docList">
+        <!-- 경로 끝에 .txt가 없어도 파일명에 따라 적절히 호출됨 -->
+        <details open>
+            <summary>Memo1</summary>
+            <a class="doc-link" onclick="loadTxt(this, 'memo1/memo1.txt')">git</a>
+        </details>
+    </div>
+    
+    <!-- 폰트 선택 설정 -->
+    <div class="font-settings">
+        <label>폰트 설정 (고정폭)</label>
+        <select id="fontSelect" onchange="changeFont(this.value)">
+            <option value="'IBM Plex Mono', 'Fira Code', monospace">IBM Plex Mono / Fira Code</option>
+            <option value="'Aurulent Sans Mono', 'DejaVu Sans Mono', monospace">Aurulent Sans Mono / DejaVu Sans Mono</option>
+            <option value="'Monaspace Argon', 'Camingo Code', monospace">Monaspace Argon / Camingo Code</option>
+            <option value="'Monaspace Neon', 'PT Mono', monospace">Monaspace Neon / PT Mono</option>
+            <option value="'Office Code Pro', 'Source Code Pro', monospace">Office Code Pro / Source Code Pro</option>
+            <option value="'Consolas', 'Intel One Mono', monospace">Consolas / Intel One Mono</option>
+            <option value="'D2Coding', 'Monaco', monospace">D2Coding / Monaco</option>
+            <option value="'Cascadia Code', 'JetBrains Mono', monospace">Cascadia Code / JetBrains Mono</option>
+            <option value="custom">직접 입력...</option>
+        </select>
+        <input type="text" id="customFont" placeholder="폰트 이름 입력 후 엔터" 
+               style="display:none;" onkeypress="if(event.keyCode==13) changeFont(this.value)">
+    </div>
+
+</nav>
+
+<main id="content-wrapper">
+    <div id="content">목록에서 문서를 선택하세요.</div>
+</main>
+
+<script>
+    async function loadTxt(element, fileName) {
+        // 활성 상태 표시 업데이트
+        const links = document.querySelectorAll('.doc-link');
+        links.forEach(l => l.classList.remove('active'));
+        element.classList.add('active');
+
+        const contentDiv = document.getElementById('content');
+        contentDiv.innerHTML = '불러오는 중...';
+        
+        try {
+            const response = await fetch(fileName);
+            if (!response.ok) throw new Error('파일을 찾을 수 없습니다.');
+            
+            // 파일 확장자 확인
+            const ext = fileName.toLowerCase().split('.').pop();
+            const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+            
+            if (imageExts.includes(ext)) {
+                // 이미지 파일 표시
+                contentDiv.style.display = 'flex';
+                contentDiv.style.alignItems = 'center';
+                contentDiv.style.justifyContent = 'center';
+                contentDiv.innerHTML = `<img src="${fileName}" style="max-width: 100%; max-height: 100%; object-fit: contain; cursor: pointer;" onclick="window.open('${fileName}', '_blank')" title="클릭하여 새 창에서 크게 보기">`;
+            } else {
+                // 텍스트 파일 표시
+                contentDiv.style.display = 'block';
+                const text = await response.text();
+                contentDiv.innerText = text;
+            }
+            contentDiv.scrollTop = 0; // 새 문서 로드 시 스크롤 상단으로
+        } catch (err) {
+            contentDiv.innerHTML = '에러: ' + err.message;
+        }
+    }
+    
+    // 간단한 검색 기능
+    function filterDocs() {
+        const query = document.getElementById('search').value.toLowerCase();
+        // 검색 시에는 모든 폴더를 일시적으로 펼침
+        document.querySelectorAll('details').forEach(det => {
+            if (query) det.open = true;
+        });
+        document.querySelectorAll('.doc-link').forEach(link => {
+            link.style.display = link.innerText.toLowerCase().includes(query) ? 'block' : 'none';
+        });
+    }
+
+    // 폰트 변경 함수
+    function changeFont(fontName) {
+        const customInput = document.getElementById('customFont');
+        if (fontName === 'custom') {
+            customInput.style.display = 'block';
+            return;
+        }
+        // 본문에 폰트 적용 (입력한 폰트가 시스템에 있으면 적용됨)
+        document.getElementById('content').style.fontFamily = fontName + ", monospace";
+        // 선택 값 저장 (브라우저 로컬 스토리지)
+        localStorage.setItem('userFont', fontName);
+    }
+
+    // 페이지 로드 시 저장된 폰트 불러오기
+    window.onload = () => {
+        const savedFont = localStorage.getItem('userFont');
+        if (savedFont) {
+            changeFont(savedFont);
+            document.getElementById('fontSelect').value = savedFont;
+        }
+    };
+
+    const menuToggle = document.getElementById('menu-toggle');
+    const sidebar = document.getElementById('sidebar');
+
+    menuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+        // 버튼 모양 변경 (선택사항)
+        menuToggle.innerText = sidebar.classList.contains('open') ? '✕' : '☰';
+    });
+
+    // 링크 클릭 시 사이드바 닫기 (모바일 편의성)
+    document.querySelectorAll('.doc-link').forEach(link => {
+        link.addEventListener('click', () => {
+            if (window.innerWidth <= 768) {
+                sidebar.classList.remove('open');
+                menuToggle.innerText = '☰';
+            }
+        });
+    });    
+</script>
+
+</body>
+</html>
